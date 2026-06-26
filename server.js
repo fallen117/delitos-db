@@ -244,6 +244,87 @@ app.get('/api/dim-fecha-resumen', async (req, res) => {
   }
 });
 
+// ─── EXPLORADOR: fact_delitos (paginada) ────────────────────────────────────
+app.get('/api/explorar/fact-delitos', async (req, res) => {
+  try {
+    const page  = parseInt(req.query.page)  || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const search = req.query.search || '';
+    const from  = (page - 1) * limit;
+
+    let query = supabase
+      .from('fact_delitos')
+      .select('*', { count: 'exact' });
+
+    const { data, error, count } = await query.range(from, from + limit - 1);
+    if (error) throw error;
+    res.json({ data, total: count, page, limit, pages: Math.ceil(count / limit) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── EXPLORADOR: dim_fecha (paginada) ────────────────────────────────────────
+app.get('/api/explorar/dim-fecha', async (req, res) => {
+  try {
+    const page  = parseInt(req.query.page)  || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const search = req.query.search || '';
+    const from  = (page - 1) * limit;
+
+    let query = supabase
+      .from('dim_fecha')
+      .select('*', { count: 'exact' });
+
+    if (search) {
+      query = query.or(`nombre_mes.ilike.%${search}%`);
+    }
+
+    const { data, error, count } = await query.range(from, from + limit - 1);
+    if (error) throw error;
+    res.json({ data, total: count, page, limit, pages: Math.ceil(count / limit) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── EXPLORADOR: dim_ubicacion (paginada + búsqueda) ─────────────────────────
+app.get('/api/explorar/dim-ubicacion', async (req, res) => {
+  try {
+    const page  = parseInt(req.query.page)  || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const search = req.query.search || '';
+    const from  = (page - 1) * limit;
+
+    let query = supabase
+      .from('dim_ubicacion')
+      .select('*', { count: 'exact' });
+
+    if (search) {
+      query = query.or(`departamento.ilike.%${search}%,municipio.ilike.%${search}%,zona.ilike.%${search}%`);
+    }
+
+    const { data, error, count } = await query.range(from, from + limit - 1);
+    if (error) throw error;
+    res.json({ data, total: count, page, limit, pages: Math.ceil(count / limit) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── EXPLORADOR: dim_sexo (completa) ─────────────────────────────────────────
+app.get('/api/explorar/dim-sexo', async (req, res) => {
+  try {
+    const { data, error, count } = await supabase
+      .from('dim_sexo')
+      .select('*', { count: 'exact' });
+    if (error) throw error;
+    res.json({ data, total: count, page: 1, limit: count, pages: 1 });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Catch-all → index.html
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

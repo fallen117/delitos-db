@@ -74,7 +74,7 @@ async function loadSection(id) {
       case 'temporal':   await loadTemporal(); break;
       case 'geografico': await loadGeografico(); break;
       case 'demografico':await loadDemografico(); break;
-      case 'tablas':     break;  // estático
+      case 'tablas':     initExplorerOnce(); break;
     }
   } catch (err) {
     console.error(`Error cargando sección ${id}:`, err);
@@ -398,6 +398,179 @@ function setStatus(ok) {
   const text = document.getElementById('statusText');
   dot.className  = 'status-dot ' + (ok ? 'ok' : 'error');
   text.textContent = ok ? 'Conectado · Supabase' : 'Error de conexión';
+}
+
+// ─── EXPLORADOR DE REGISTROS ──────────────────────────────────────────
+// Config por tabla: endpoint, columnas a mostrar (orden) y si soporta búsqueda en backend.
+const EXPLORER_TABLES = {
+  'fact-delitos': {
+    endpoint: '/api/explorar/fact-delitos',
+    columns: ['fecha_id', 'ubicacion_id', 'sexo_id', 'cantidad'],
+    searchable: false,
+  },
+  'dim-fecha': {
+    endpoint: '/api/explorar/dim-fecha',
+    columns: ['fecha_id', 'fecha_hecho', 'anio', 'mes', 'dia', 'dia_semana', 'nombre_mes'],
+    searchable: true,
+  },
+  'dim-ubicacion': {
+    endpoint: '/api/explorar/dim-ubicacion',
+    columns: ['ubicacion_id', 'cod_depto', 'departamento', 'cod_muni', 'municipio', 'zona'],
+    searchable: true,
+  },
+  'dim-sexo': {
+    endpoint: '/api/explorar/dim-sexo',
+    columns: ['sexo_id', 'sexo'],
+    searchable: false,
+  },
+};
+
+const explorerState = {
+  table: 'fact-delitos',
+  page: 1,
+  limit: 50,
+  search: '',
+  total: 0,
+  pages: 1,
+};
+
+let explorerSearchDebounce = null;
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function formatCell(value) {
+  if (value === null || value === undefined || value === '') {
+    return '<span class="cell-null">—</span>';
+  }
+  return escapeHtml(value);
+}
+
+async function loadExplorerTable() {
+  const cfg = EXPLORER_TABLES[explorerState.table];
+  const tbody = document.getElementById('explorerTbody');
+  const thead = document.getElementById('explorerThead');
+  const status = document.getElementById('explorerStatus');
+  const countEl = document.getElementById('explorerCount');
+
+  status.textContent = 'Cargando…';
+  tbody.innerHTML = `<tr><td colspan="${cfg.columns.length}" class="loading-cell"><div class="loader-inline"></div></td></tr>`;
+
+  // Encabezados
+  thead.innerHTML = `<tr>${cfg.columns.map(c => `<th>${c}</th>`).join('')}</tr>`;
+
+  try {
+    let url = `${cfg.endpoint}?page=${explorerState.page}&limit=${explorerState.limit}`;
+    if (cfg.searchable && explorerState.search) {
+      url += `&search=${encodeURIComponent(explorerState.search)}`;
+    }
+    const res = await fetchAPI(url);
+    let rows = res.data || [];
+
+    // dim_sexo no pagina en backend (devuelve todo) y no busca: filtramos/paginamos en cliente.
+    if (explorerState.table === 'dim-sexo') {
+      if (explorerState.search) {
+        const q = explorerState.search.toLowerCase();
+        rows = rows.filter(r => Object.values(r).some(v => String(v ?? '').toLowerCase().includes(q)));
+      }
+      explorerState.total = rows.length;
+      explorerState.pages = Math.max(1, Math.ceil(rows.length / explorerState.limit));
+      const from = (explorerState.page - 1) * explorerState.limit;
+      rows = rows.slice(from, from + explorerState.limit);
+    } else {
+      explorerState.total = res.total ?? rows.length;
+      explorerState.pages = res.pages ?? 1;
+    }
+
+    if (rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="${cfg.columns.length}" class="loading-cell">Sin resultados.</td></tr>`;
+    } else {
+      tbody.innerHTML = rows.map(r => `
+        <tr>${cfg.columns.map(c => `<td>${formatCell(r[c])}</td>`).join('')}</tr>
+      `).join('');
+    }
+
+    countEl.textContent = `${explorerState.total.toLocaleString('es-CO')} registros totales`;
+    document.getElementById('explorerPageInfo').textContent = `Pág. ${explorerState.page} / ${explorerState.pages}`;
+    status.textContent = '';
+
+    // Botones de paginación
+    document.getElementById('explorerFirst').disabled = explorerState.page <= 1;
+    document.getElementById('explorerPrev').disabled  = explorerState.page <= 1;
+    document.getElementById('explorerNext').disabled  = explorerState.page >= explorerState.pages;
+    document.getElementById('explorerLast').disabled  = explorerState.page >= explorerState.pages;
+
+  } catch (err) {
+    console.error('Error cargando explorador:', err);
+    tbody.innerHTML = `<tr><td colspan="${cfg.columns.length}" class="loading-cell">Error al cargar los datos.</td></tr>`;
+    status.textContent = 'Error';
+  }
+}
+
+function setupExplorer() {
+  // Tabs de selección de tabla
+  document.querySelectorAll('.explorer-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.explorer-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      explorerState.table = tab.dataset.table;
+      explorerState.page = 1;
+      explorerState.search = '';
+      document.getElementById('explorerSearch').value = '';
+      const cfg = EXPLORER_TABLES[explorerState.table];
+      document.getElementById('explorerSearch').disabled = !cfg.searchable && explorerState.table !== 'dim-sexo';
+      document.getElementById('explorerSearch').placeholder = cfg.searchable || explorerState.table === 'dim-sexo'
+        ? 'Buscar…'
+        : 'Búsqueda no disponible para esta tabla';
+      loadExplorerTable();
+    });
+  });
+
+  // Buscador (con debounce)
+  document.getElementById('explorerSearch').addEventListener('input', (e) => {
+    clearTimeout(explorerSearchDebounce);
+    explorerSearchDebounce = setTimeout(() => {
+      explorerState.search = e.target.value.trim();
+      explorerState.page = 1;
+      loadExplorerTable();
+    }, 350);
+  });
+
+  // Tamaño de página
+  document.getElementById('explorerPageSize').addEventListener('change', (e) => {
+    explorerState.limit = parseInt(e.target.value);
+    explorerState.page = 1;
+    loadExplorerTable();
+  });
+
+  // Paginación
+  document.getElementById('explorerFirst').addEventListener('click', () => {
+    if (explorerState.page > 1) { explorerState.page = 1; loadExplorerTable(); }
+  });
+  document.getElementById('explorerPrev').addEventListener('click', () => {
+    if (explorerState.page > 1) { explorerState.page -= 1; loadExplorerTable(); }
+  });
+  document.getElementById('explorerNext').addEventListener('click', () => {
+    if (explorerState.page < explorerState.pages) { explorerState.page += 1; loadExplorerTable(); }
+  });
+  document.getElementById('explorerLast').addEventListener('click', () => {
+    if (explorerState.page < explorerState.pages) { explorerState.page = explorerState.pages; loadExplorerTable(); }
+  });
+
+  // Carga inicial (tabla por defecto: fact_delitos)
+  loadExplorerTable();
+}
+
+let explorerInitialized = false;
+function initExplorerOnce() {
+  if (explorerInitialized) return;
+  explorerInitialized = true;
+  setupExplorer();
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────

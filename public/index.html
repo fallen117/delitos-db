@@ -390,6 +390,56 @@
             </div>
           </div>
         </div>
+        <!-- ── EXPLORADOR DE REGISTROS ──────────────────────────── -->
+        <div class="explorer-card">
+          <div class="explorer-header">
+            <h4>Explorador de Registros</h4>
+            <p class="explorer-subtitle">Consulta fila por fila y columna por columna el contenido real de cada tabla del schema <code>public</code>.</p>
+          </div>
+
+          <div class="explorer-tabs" id="explorerTabs">
+            <button class="explorer-tab active" data-table="fact-delitos">fact_delitos</button>
+            <button class="explorer-tab" data-table="dim-fecha">dim_fecha</button>
+            <button class="explorer-tab" data-table="dim-ubicacion">dim_ubicacion</button>
+            <button class="explorer-tab" data-table="dim-sexo">dim_sexo</button>
+          </div>
+
+          <div class="explorer-controls">
+            <input type="text" id="explorerSearch" class="explorer-search" placeholder="Buscar..." />
+            <div class="explorer-controls-right">
+              <label for="explorerPageSize" class="explorer-label">Filas por página</label>
+              <select id="explorerPageSize" class="explorer-select">
+                <option value="25">25</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="250">250</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="explorer-meta">
+            <span id="explorerCount">—</span>
+            <span id="explorerStatus"></span>
+          </div>
+
+          <div class="table-scroll explorer-scroll">
+            <table id="explorerTable">
+              <thead id="explorerThead"></thead>
+              <tbody id="explorerTbody">
+                <tr><td class="loading-cell"><div class="loader-inline"></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="explorer-pagination">
+            <button class="btn-ghost" id="explorerFirst">« Primera</button>
+            <button class="btn-ghost" id="explorerPrev">‹ Anterior</button>
+            <span class="page-info" id="explorerPageInfo">Pág. 1</span>
+            <button class="btn-ghost" id="explorerNext">Siguiente ›</button>
+            <button class="btn-ghost" id="explorerLast">Última »</button>
+          </div>
+        </div>
+
       </section>
 
     </div>
