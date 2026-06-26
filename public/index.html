@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard · Análisis de Delitos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-icon">⚖</span>
+      <span class="brand-text">DelitosDB</span>
+    </div>
+    <ul class="nav-links">
+      <li><a href="#resumen" class="nav-link active" data-section="resumen">
+        <span class="nav-icon">◈</span> Resumen
+      </a></li>
+      <li><a href="#temporal" class="nav-link" data-section="temporal">
+        <span class="nav-icon">◈</span> Análisis Temporal
+      </a></li>
+      <li><a href="#geografico" class="nav-link" data-section="geografico">
+        <span class="nav-icon">◈</span> Distribución Geográfica
+      </a></li>
+      <li><a href="#demografico" class="nav-link" data-section="demografico">
+        <span class="nav-icon">◈</span> Demografía
+      </a></li>
+      <li><a href="#tablas" class="nav-link" data-section="tablas">
+        <span class="nav-icon">◈</span> Tablas de Datos
+      </a></li>
+    </ul>
+    <div class="sidebar-footer">
+      <span class="db-badge">Supabase · PostgreSQL</span>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- HEADER -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggle">☰</button>
+        <div class="breadcrumb">
+          <span id="breadcrumbLabel">Resumen General</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="status-dot" id="statusDot"></div>
+        <span class="status-text" id="statusText">Conectando...</span>
+      </div>
+    </header>
+
+    <!-- CONTENT -->
+    <div class="content">
+
+      <!-- ── SECCIÓN: RESUMEN ───────────────────────────────────── -->
+      <section id="resumen" class="section active">
+        <div class="section-header">
+          <h1 class="section-title">Resumen General</h1>
+          <p class="section-subtitle">Vista consolidada del modelo de datos de delitos</p>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi-card accent">
+            <div class="kpi-label">Total Registros</div>
+            <div class="kpi-value" id="kpiTotal">—</div>
+            <div class="kpi-sub">fact_delitos</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Ubicaciones</div>
+            <div class="kpi-value" id="kpiUbicaciones">—</div>
+            <div class="kpi-sub">municipios catalogados</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Fechas</div>
+            <div class="kpi-value" id="kpiFechas">—</div>
+            <div class="kpi-sub">días registrados</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Categorías Sexo</div>
+            <div class="kpi-value" id="kpiSexos">—</div>
+            <div class="kpi-sub">dim_sexo</div>
+          </div>
+        </div>
+
+        <div class="chart-row">
+          <div class="chart-card wide">
+            <div class="chart-header">
+              <h3>Delitos registrados por año</h3>
+              <span class="chart-badge">Serie temporal</span>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="chartAnioResumen"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Por zona geográfica</h3>
+              <span class="chart-badge">Distribución</span>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="chartZonaResumen"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-card">
+            <h4>Modelo Dimensional</h4>
+            <p>Arquitectura estrella con una tabla de hechos central (<code>fact_delitos</code>) conectada a tres dimensiones: <code>dim_fecha</code>, <code>dim_ubicacion</code> y <code>dim_sexo</code>.</p>
+          </div>
+          <div class="info-card">
+            <h4>Cobertura Geográfica</h4>
+            <p>Los datos cubren municipios de Colombia organizados con código DANE por departamento y municipio.</p>
+          </div>
+          <div class="info-card">
+            <h4>Cobertura Temporal</h4>
+            <p id="infoCoberturaTemp">Cargando información temporal...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── SECCIÓN: TEMPORAL ──────────────────────────────────── -->
+      <section id="temporal" class="section">
+        <div class="section-header">
+          <h1 class="section-title">Análisis Temporal</h1>
+          <p class="section-subtitle">Distribución de delitos en el tiempo · dim_fecha</p>
+        </div>
+
+        <div class="chart-row">
+          <div class="chart-card wide">
+            <div class="chart-header">
+              <h3>Evolución anual de delitos</h3>
+              <span class="chart-badge">Línea</span>
+            </div>
+            <div class="chart-wrap tall">
+              <canvas id="chartAnio"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-row">
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Delitos por mes del año</h3>
+              <span class="chart-badge">Barras</span>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="chartMes"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Delitos por día de la semana</h3>
+              <span class="chart-badge">Radar</span>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="chartDiaSemana"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="dim-summary-card">
+          <h4>dim_fecha · Resumen de cobertura</h4>
+          <div class="dim-stats" id="dimFechaStats">
+            <div class="loader-inline"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── SECCIÓN: GEOGRÁFICO ────────────────────────────────── -->
+      <section id="geografico" class="section">
+        <div class="section-header">
+          <h1 class="section-title">Distribución Geográfica</h1>
+          <p class="section-subtitle">Análisis territorial · dim_ubicacion</p>
+        </div>
+
+        <div class="chart-row">
+          <div class="chart-card wide">
+            <div class="chart-header">
+              <h3>Top 15 departamentos con más delitos</h3>
+              <span class="chart-badge">Barras horizontales</span>
+            </div>
+            <div class="chart-wrap tall">
+              <canvas id="chartDepartamentos"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-row">
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Top 10 municipios</h3>
+              <span class="chart-badge">Barras</span>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="chartMunicipios"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Delitos por zona</h3>
+              <span class="chart-badge">Dona</span>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="chartZona"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-header">
+            <h3>dim_ubicacion · Catálogo de municipios</h3>
+            <div class="table-controls">
+              <button class="btn-ghost" id="prevPage">‹ Anterior</button>
+              <span class="page-info" id="pageInfo">Pág. 1</span>
+              <button class="btn-ghost" id="nextPage">Siguiente ›</button>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table id="tablaUbicacion">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Cód. Depto.</th>
+                  <th>Departamento</th>
+                  <th>Cód. Muni.</th>
+                  <th>Municipio</th>
+                  <th>Zona</th>
+                </tr>
+              </thead>
+              <tbody id="tablaUbicacionBody">
+                <tr><td colspan="6" class="loading-cell"><div class="loader-inline"></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── SECCIÓN: DEMOGRAFÍA ────────────────────────────────── -->
+      <section id="demografico" class="section">
+        <div class="section-header">
+          <h1 class="section-title">Demografía</h1>
+          <p class="section-subtitle">Distribución de delitos según sexo · dim_sexo</p>
+        </div>
+
+        <div class="chart-row">
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Distribución por sexo</h3>
+              <span class="chart-badge">Pastel</span>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="chartSexoPie"></canvas>
+            </div>
+          </div>
+          <div class="chart-card wide">
+            <div class="chart-header">
+              <h3>Comparativa por categoría de sexo</h3>
+              <span class="chart-badge">Barras</span>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="chartSexoBar"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-card compact">
+          <div class="table-header">
+            <h3>dim_sexo · Catálogo de categorías</h3>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Descripción</th>
+                  <th>Total delitos</th>
+                  <th>% del total</th>
+                </tr>
+              </thead>
+              <tbody id="tablaSexoBody">
+                <tr><td colspan="4" class="loading-cell"><div class="loader-inline"></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── SECCIÓN: TABLAS ────────────────────────────────────── -->
+      <section id="tablas" class="section">
+        <div class="section-header">
+          <h1 class="section-title">Tablas de Datos</h1>
+          <p class="section-subtitle">Exploración del modelo dimensional completo</p>
+        </div>
+
+        <div class="schema-grid">
+          <div class="schema-card fact">
+            <div class="schema-badge">FACT</div>
+            <h4>fact_delitos</h4>
+            <p>Tabla de hechos principal. Registros de delitos cruzando las tres dimensiones.</p>
+            <ul class="schema-cols">
+              <li><span class="col-key">FK</span> fecha_id</li>
+              <li><span class="col-key">FK</span> ubicacion_id</li>
+              <li><span class="col-key">FK</span> sexo_id</li>
+              <li><span class="col-num">INT</span> cantidad</li>
+            </ul>
+            <div class="schema-stat"><strong>438,526</strong> registros</div>
+          </div>
+          <div class="schema-card dim">
+            <div class="schema-badge dim-badge">DIM</div>
+            <h4>dim_fecha</h4>
+            <p>Dimensión de tiempo con año, mes, día y día de semana.</p>
+            <ul class="schema-cols">
+              <li><span class="col-pk">PK</span> fecha_id</li>
+              <li><span class="col-date">DATE</span> fecha_hecho</li>
+              <li><span class="col-num">INT</span> anio / mes / dia</li>
+              <li><span class="col-num">INT</span> dia_semana</li>
+              <li><span class="col-str">VARCHAR</span> nombre_mes</li>
+            </ul>
+            <div class="schema-stat"><strong>8,552</strong> registros</div>
+          </div>
+          <div class="schema-card dim">
+            <div class="schema-badge dim-badge">DIM</div>
+            <h4>dim_ubicacion</h4>
+            <p>Dimensión geográfica con jerarquía departamento → municipio.</p>
+            <ul class="schema-cols">
+              <li><span class="col-pk">PK</span> ubicacion_id</li>
+              <li><span class="col-num">INT</span> cod_depto / cod_muni</li>
+              <li><span class="col-str">VARCHAR</span> departamento</li>
+              <li><span class="col-str">VARCHAR</span> municipio</li>
+              <li><span class="col-str">VARCHAR</span> zona</li>
+            </ul>
+            <div class="schema-stat"><strong>2,217</strong> registros</div>
+          </div>
+          <div class="schema-card dim">
+            <div class="schema-badge dim-badge">DIM</div>
+            <h4>dim_sexo</h4>
+            <p>Catálogo de categorías de género registradas.</p>
+            <ul class="schema-cols">
+              <li><span class="col-pk">PK</span> sexo_id</li>
+              <li><span class="col-str">VARCHAR</span> sexo</li>
+            </ul>
+            <div class="schema-stat"><strong>5</strong> registros</div>
+          </div>
+        </div>
+
+        <div class="erd-card">
+          <h4>Diagrama Entidad-Relación</h4>
+          <div class="erd-diagram">
+            <div class="erd-dim-col">
+              <div class="erd-box dim-box">
+                <div class="erd-box-title">dim_fecha</div>
+                <div class="erd-box-pk">◆ fecha_id (PK)</div>
+                <div class="erd-box-col">fecha_hecho</div>
+                <div class="erd-box-col">anio · mes · dia</div>
+                <div class="erd-box-col">dia_semana · nombre_mes</div>
+              </div>
+              <div class="erd-box dim-box">
+                <div class="erd-box-title">dim_sexo</div>
+                <div class="erd-box-pk">◆ sexo_id (PK)</div>
+                <div class="erd-box-col">sexo</div>
+              </div>
+            </div>
+            <div class="erd-center">
+              <div class="erd-connector top-line"></div>
+              <div class="erd-box fact-box">
+                <div class="erd-box-title">fact_delitos</div>
+                <div class="erd-box-fk">→ fecha_id (FK)</div>
+                <div class="erd-box-fk">→ ubicacion_id (FK)</div>
+                <div class="erd-box-fk">→ sexo_id (FK)</div>
+                <div class="erd-box-col">cantidad</div>
+              </div>
+              <div class="erd-connector bottom-line"></div>
+            </div>
+            <div class="erd-dim-col right">
+              <div class="erd-box dim-box single">
+                <div class="erd-box-title">dim_ubicacion</div>
+                <div class="erd-box-pk">◆ ubicacion_id (PK)</div>
+                <div class="erd-box-col">cod_depto · departamento</div>
+                <div class="erd-box-col">cod_muni · municipio</div>
+                <div class="erd-box-col">zona</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
